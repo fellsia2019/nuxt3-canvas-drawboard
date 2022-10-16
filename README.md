@@ -1,6 +1,6 @@
-# Nuxt 3 Minimal Starter
+# DrawBoard - Nuxt3/Canvas
 
-Look at the [nuxt 3 documentation](https://v3.nuxtjs.org) to learn more.
+#### `NodeJS` version lts/gallium(16.17.0)
 
 ## Setup
 
