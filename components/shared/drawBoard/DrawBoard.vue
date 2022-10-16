@@ -1,258 +1,143 @@
 <template>
   <div class="draw-board">
     <div class="draw-board__settings">
-      <CustomInput
-        class="draw-board__settings-field"
-        v-model="userSettingsCanvas.background"
-        type="color"
-        >Цвет фона</CustomInput
-      >
-      <CustomInput
-        class="draw-board__settings-field"
-        v-model="userSettingsCanvas.color"
-        type="color"
-        >Цвет кисти</CustomInput
-      >
-      <CustomInput
-        class="draw-board__settings-field"
-        v-model="userSettingsCanvas.radius"
-        type="range"
-        min="1"
-        max="20"
-        >Радиус кисти: {{ userSettingsCanvas.radius }}</CustomInput
-      >
-      <div class="draw-board__dots-sizes draw-board__settings-field">
-        <ColorDot
-          v-for="dot in sizesPointer"
-          :key="`draw-board__dot-sizes-${dot.id}`"
-          :size="dot.size"
-          :theme="userSettingsCanvas.color"
-          :currentSize="userSettingsCanvas.radius"
-          @click="userSettingsCanvas.radius = dot.size"
-        />
+      <div class="draw-board__tools">
+        <div
+          v-for="(tool, i) in tools"
+          :key="`draw-board__tool-${i}`"
+          class="draw-board__tool"
+          :class="toolClassStr(tool.model)"
+          @click="currentTool = tool.model"
+        >
+          <img :src="tool.icon" />
+        </div>
       </div>
-
-      <CustomButton size="MD" @click="onClearCanvas">Очистить</CustomButton>
+      <div v-if="Boolean(currentTool)">
+        <CustomInput
+          class="draw-board__settings-field"
+          v-model="currentTool.background"
+          type="color"
+          >Цвет фона</CustomInput
+        >
+        <CustomInput
+          class="draw-board__settings-field"
+          v-model="currentTool.fillColor"
+          type="color"
+          >Цвет кисти</CustomInput
+        >
+        <CustomInput
+          class="draw-board__settings-field"
+          v-model="currentTool.lineWidth"
+          type="range"
+          min="1"
+          max="30"
+          >Ширина кисти: {{ currentTool.lineWidth }}</CustomInput
+        >
+        <div class="draw-board__dots-sizes draw-board__settings-field">
+          <ColorDot
+            v-for="dot in sizesPointer"
+            :key="`draw-board__dot-sizes-${dot.id}`"
+            :size="dot.size"
+            :theme="currentTool.fillColor"
+            :currentSize="currentTool.lineWidth"
+            @click="currentTool.lineWidth = dot.size"
+          />
+        </div>
+        <CustomButton size="MD" @click="currentTool.clearCtx()"
+          >Очистить</CustomButton
+        >
+      </div>
     </div>
     <canvas
       class="draw-board__canvas"
-      ref="canvas"
-      :style="canvasStylesString"
-      @mousedown="startDrawFromMouseMove"
-      @mousemove="drawArcWithLine"
-      @mouseup="stopDrawFromMouseMove"
-      @mouseleave="stopDrawFromMouseMove"
+      ref="canvasDOM"
+      @mousedown="onMousedown"
+      @mousemove="onMouseMove"
+      @mouseup="onMouseup"
+      @mouseleave="onMouseup"
     ></canvas>
   </div>
 </template>
 
 <script lang="ts" setup>
-  interface ICoordinates {
-    x: number;
-    y: number;
-  }
+  import BaseTool from '@/models/Canvas/Tools/BaseTool';
+  import RadiusLine from '@/models/Canvas/Tools/RadiusLine';
+  import Eraser from '@/models/Canvas/Tools/Eraser';
 
-  interface IUserSettingsCanvas {
-    radius: number;
-    color: string;
-    background: string;
-  }
+  type ToolsModels = 'RadiusLine' | 'Eraser';
 
-  const canvas = ref<HTMLCanvasElement | null>(null);
-  const ctx = ref<CanvasRenderingContext2D | null>(null);
-
-  const rect = {
-    get value(): DOMRect | null {
-      return canvas.value ? canvas.value.getBoundingClientRect() : null;
-    },
+  type ITools = {
+    [key in ToolsModels]: {
+      model: BaseTool | null;
+      icon: string;
+    };
   };
 
-  const userSettingsCanvas = reactive<IUserSettingsCanvas>({
-    radius: 2,
-    color: '#000000',
-    background: '#ffffff',
+  const tools = reactive<ITools>({
+    Eraser: {
+      model: null,
+      icon: '/img/eraser.svg',
+    },
+    RadiusLine: {
+      model: null,
+      icon: '/img/paint.svg',
+    },
   });
 
-  const canvasStylesString = computed<string>(() => {
-    return `background-color: ${userSettingsCanvas.background}`;
-  });
-
-  const sizesPointer = reactive([
+  const sizesPointer = reactive<Array<{ id: number; size: number }>>([
     {
       id: 1,
       size: 6,
     },
     {
       id: 2,
-      size: 8,
-    },
-    {
-      id: 4,
       size: 10,
     },
     {
-      id: 5,
+      id: 4,
       size: 15,
     },
     {
-      id: 6,
+      id: 5,
       size: 20,
+    },
+    {
+      id: 6,
+      size: 30,
     },
   ]);
 
-  const prevPositionFromMove = ref<ICoordinates>({ x: 0, y: 0 });
-
-  const canDraw = ref<boolean>(false);
+  const canvasDOM = ref<HTMLCanvasElement | null>(null);
+  const currentTool = ref<BaseTool | null>(null);
 
   function initCanvas() {
-    if (!canvas.value)
-      throw new Error('initCanvas: canvas DOM is not defined!');
+    if (!canvasDOM.value) return;
 
-    ctx.value = canvas.value.getContext('2d');
+    tools.RadiusLine.model = new RadiusLine(canvasDOM.value);
+    tools.Eraser.model = new Eraser(canvasDOM.value);
 
-    if (!ctx.value)
-      throw new Error('initCanvas: context canvas in not defined');
-
-    const scale = window.devicePixelRatio;
-
-    canvas.value.width = (rect.value?.width || 0) * scale;
-    canvas.value.height = (rect.value?.height || 0) * scale;
-    ctx.value.scale(scale, scale);
+    // Устанавливаем превыбор инструмента
+    currentTool.value = tools.RadiusLine.model;
   }
 
-  function setPrevPositionFromMove(x: number, y: number) {
-    prevPositionFromMove.value.x = x;
-    prevPositionFromMove.value.y = y;
+  function toolClassStr(model: BaseTool) {
+    return model === currentTool.value ? 'draw-board__tool--is-active' : '';
   }
 
-  function validPositionsFromEvent(
-    eventX: number,
-    eventY: number
-  ): ICoordinates {
-    return rect.value
-      ? {
-          x: eventX - rect.value.left,
-          y: eventY - rect.value.top,
-        }
-      : {
-          x: 0,
-          y: 0,
-        };
+  function onMousedown(e: MouseEvent) {
+    if (!currentTool.value) return;
+
+    currentTool.value.startDraw(e);
   }
+  function onMouseMove(e: MouseEvent) {
+    if (!currentTool.value) return;
 
-  function drawLine(from: ICoordinates, to: ICoordinates) {
-    if (!ctx.value) throw new Error('drawLine: context canvas in not defined');
-
-    ctx.value.beginPath();
-    ctx.value.moveTo(from.x, from.y);
-    ctx.value.lineTo(to.x, to.y);
-    ctx.value.stroke();
-
-    testConfig.line.push({
-      from: { ...from },
-      to,
-      lineWidth: userSettingsCanvas.radius * 2,
-      color: userSettingsCanvas.color,
-    });
-
-    console.log(prevPositionFromMove.value, from);
+    currentTool.value.draw(e);
   }
+  function onMouseup(e: MouseEvent) {
+    if (!currentTool.value) return;
 
-  function drawArc(
-    x: number,
-    y: number,
-    r: number,
-    startAngle = 0,
-    endAngle = Math.PI * 2,
-    anticlockwise = false
-  ) {
-    if (!ctx.value) throw new Error('drawArc: context canvas in not defined');
-
-    testConfig.arc.push({
-      x,
-      y,
-      r,
-      color: userSettingsCanvas.color,
-    });
-
-    ctx.value.beginPath();
-    ctx.value.arc(x, y, r, startAngle, endAngle, anticlockwise);
-
-    ctx.value.fill();
-  }
-
-  const testConfig: {
-    arc: Array<{
-      x: number;
-      y: number;
-      r: number;
-      color: string;
-    }>;
-    line: Array<{
-      from: ICoordinates;
-      to: ICoordinates;
-      lineWidth: number;
-      color: string;
-    }>;
-    restore: () => void;
-  } = {
-    arc: [],
-    line: [],
-    restore() {
-      this.arc = [];
-      this.line = [];
-    },
-  };
-
-  function drawArcWithLine(e: MouseEvent) {
-    if (!canDraw.value) return;
-
-    if (!ctx.value)
-      throw new Error('drawArcWithLine: context canvas in not defined');
-
-    const { x, y } = validPositionsFromEvent(e.x, e.y);
-
-    drawArc(x, y, userSettingsCanvas.radius);
-
-    if (
-      prevPositionFromMove.value.x === 0 &&
-      prevPositionFromMove.value.y === 0
-    ) {
-      setPrevPositionFromMove(x, y);
-    }
-
-    ctx.value.lineWidth = userSettingsCanvas.radius * 2;
-    drawLine(prevPositionFromMove.value, { x, y });
-    setPrevPositionFromMove(x, y);
-  }
-
-  function startDrawFromMouseMove(e: MouseEvent) {
-    if (!ctx.value)
-      throw new Error('startDrawFromMouseMove: context canvas in not defined');
-
-    canDraw.value = true;
-
-    if (ctx.value.fillStyle != userSettingsCanvas.color) {
-      ctx.value.fillStyle = userSettingsCanvas.color;
-      ctx.value.strokeStyle = userSettingsCanvas.color;
-    }
-
-    drawArcWithLine(e);
-  }
-  function stopDrawFromMouseMove() {
-    canDraw.value = false;
-    setPrevPositionFromMove(0, 0);
-
-    console.log('testConfig:', testConfig);
-  }
-
-  function onClearCanvas() {
-    if (!ctx.value)
-      throw new Error('clearCanvas: context canvas in not defined');
-    if (!rect.value) throw new Error('clearCanvas: rect canvas in not defined');
-
-    ctx.value.clearRect(0, 0, rect.value.width, rect.value.height);
-    testConfig.restore();
+    currentTool.value.endDraw();
   }
 
   onMounted(() => {
@@ -279,6 +164,42 @@
 
       padding: 20px 12px;
       color: $color-light;
+    }
+
+    // .draw-board__tools
+    &__tools {
+      margin-bottom: 15px;
+    }
+
+    // .draw-board__tool
+    &__tool {
+      display: inline-flex;
+      width: auto;
+      height: 30px;
+      cursor: pointer;
+
+      padding: 4px;
+      border: 2px solid transparent;
+      border-radius: 5px;
+      transition: all 0.3s ease;
+
+      img {
+        width: 100%;
+      }
+
+      &:not(&:last-child) {
+        margin-right: 8px;
+      }
+
+      &:hover {
+        border-color: $color-light;
+      }
+      background-color: rgba($color-light, 0.5);
+
+      // .draw-board__tool--is-active
+      &--is-active {
+        background-color: $color-light;
+      }
     }
 
     // .draw-board__settings-field

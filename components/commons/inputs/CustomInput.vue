@@ -1,6 +1,8 @@
 <template>
   <div class="custom-input">
-    <label class="custom-input__label" :for="id"><slot /></label>
+    <div>
+      <label class="custom-input__label" :for="id"><slot /></label>
+    </div>
     <input
       class="custom-input__input"
       :class="inputClasses"
@@ -53,7 +55,7 @@
   .custom-input {
     // .custom-input__label
     &__label {
-      display: block;
+      display: inline-block;
       margin-bottom: 8px;
       font-size: 18px;
     }

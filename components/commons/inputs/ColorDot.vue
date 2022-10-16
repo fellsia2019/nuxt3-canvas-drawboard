@@ -31,9 +31,7 @@
   });
 
   const colorDotWidthStyle = computed<string>(() => {
-    return `width: ${colorDotProps.size * 2}px; height: ${
-      colorDotProps.size * 2
-    }px`;
+    return `width: ${colorDotProps.size}px; height: ${colorDotProps.size}px`;
   });
 </script>
 
