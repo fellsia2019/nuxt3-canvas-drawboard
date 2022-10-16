@@ -70,36 +70,33 @@
 
     // .custom-buttom--theme-primary
     &--theme-primary {
-      background-color: rgb(47, 78, 216);
-
-      color: #fff;
+      background-color: $color-primary;
+      color: $color-light;
 
       &:hover {
-        background-color: rgb(46, 65, 146);
-        color: #fff;
+        background-color: rgba($color-primary, 0.8);
+        color: $color-light;
       }
 
       &:active {
-        background-color: rgb(47, 78, 216);
-        color: #fff;
+        background-color: $color-primary;
+        color: $color-light;
       }
     }
 
     // .custom-buttom--theme-success
     &--theme-success {
-      background-color: rgb(47, 216, 103);
-
-      color: #fff;
+      background-color: $color-succes;
+      color: $color-light;
 
       &:hover {
-        background-color: rgb(46, 155, 83);
-
-        color: #fff;
+        background-color: rgba($color-succes, 0.8);
+        color: $color-light;
       }
 
       &:active {
-        background-color: rgb(47, 216, 103);
-        color: #fff;
+        background-color: $color-succes;
+        color: $color-light;
       }
     }
   }

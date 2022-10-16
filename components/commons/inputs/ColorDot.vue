@@ -61,7 +61,7 @@
       width: 80%;
       height: 80%;
       border-radius: 50%;
-      background: linear-gradient(to right, #d3cce3, #e9e4f0);
+      background: $gradient-light;
       transition: all 0.3s ease;
     }
 

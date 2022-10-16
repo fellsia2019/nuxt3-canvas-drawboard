@@ -142,12 +142,20 @@
 
   function drawLine(from: ICoordinates, to: ICoordinates) {
     if (!ctx.value) throw new Error('drawLine: context canvas in not defined');
-    ctx.value.strokeStyle = userSettingsCanvas.color;
 
     ctx.value.beginPath();
     ctx.value.moveTo(from.x, from.y);
     ctx.value.lineTo(to.x, to.y);
     ctx.value.stroke();
+
+    testConfig.line.push({
+      from: { ...from },
+      to,
+      lineWidth: userSettingsCanvas.radius * 2,
+      color: userSettingsCanvas.color,
+    });
+
+    console.log(prevPositionFromMove.value, from);
   }
 
   function drawArc(
@@ -159,13 +167,42 @@
     anticlockwise = false
   ) {
     if (!ctx.value) throw new Error('drawArc: context canvas in not defined');
-    ctx.value.fillStyle = userSettingsCanvas.color;
+
+    testConfig.arc.push({
+      x,
+      y,
+      r,
+      color: userSettingsCanvas.color,
+    });
 
     ctx.value.beginPath();
     ctx.value.arc(x, y, r, startAngle, endAngle, anticlockwise);
 
     ctx.value.fill();
   }
+
+  const testConfig: {
+    arc: Array<{
+      x: number;
+      y: number;
+      r: number;
+      color: string;
+    }>;
+    line: Array<{
+      from: ICoordinates;
+      to: ICoordinates;
+      lineWidth: number;
+      color: string;
+    }>;
+    restore: () => void;
+  } = {
+    arc: [],
+    line: [],
+    restore() {
+      this.arc = [];
+      this.line = [];
+    },
+  };
 
   function drawArcWithLine(e: MouseEvent) {
     if (!canDraw.value) return;
@@ -190,12 +227,23 @@
   }
 
   function startDrawFromMouseMove(e: MouseEvent) {
+    if (!ctx.value)
+      throw new Error('startDrawFromMouseMove: context canvas in not defined');
+
     canDraw.value = true;
+
+    if (ctx.value.fillStyle != userSettingsCanvas.color) {
+      ctx.value.fillStyle = userSettingsCanvas.color;
+      ctx.value.strokeStyle = userSettingsCanvas.color;
+    }
+
     drawArcWithLine(e);
   }
   function stopDrawFromMouseMove() {
     canDraw.value = false;
     setPrevPositionFromMove(0, 0);
+
+    console.log('testConfig:', testConfig);
   }
 
   function onClearCanvas() {
@@ -204,6 +252,7 @@
     if (!rect.value) throw new Error('clearCanvas: rect canvas in not defined');
 
     ctx.value.clearRect(0, 0, rect.value.width, rect.value.height);
+    testConfig.restore();
   }
 
   onMounted(() => {
@@ -226,10 +275,10 @@
 
     // .draw-board__settings
     &__settings {
-      background: linear-gradient(to bottom, #2c3e50, #fd746c);
+      background: $gradient-dark-danger;
 
       padding: 20px 12px;
-      color: #fff;
+      color: $color-light;
     }
 
     // .draw-board__settings-field
