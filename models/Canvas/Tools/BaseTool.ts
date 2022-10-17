@@ -10,7 +10,6 @@ export default class BaseTool extends BaseCanvas {
     this.ctx.fillStyle = color;
     this.ctx.strokeStyle = color;
   }
-
   get fillColor(): string | CanvasGradient | CanvasPattern {
     return this.ctx?.strokeStyle || '#000000';
   }
